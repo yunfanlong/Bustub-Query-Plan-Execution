@@ -14,12 +14,13 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
+#include "concurrency/transaction_manager.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
 #include "storage/table/tuple.h"
-
 namespace bustub {
 
 /**
@@ -51,14 +52,24 @@ class InsertExecutor : public AbstractExecutor {
    * NOTE: InsertExecutor::Next() does not use the `tuple` out-parameter.
    * NOTE: InsertExecutor::Next() does not use the `rid` out-parameter.
    */
-  auto Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool override;
+  bool Next([[maybe_unused]] Tuple *tuple, RID *rid) override;
 
   /** @return The output schema for the insert */
-  auto GetOutputSchema() -> const Schema * override { return plan_->OutputSchema(); };
+  const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
 
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
+
+  std::unique_ptr<AbstractExecutor> child_executor_;
+
+  TableInfo *table_info_;
+
+  bool is_raw_;
+
+  uint32_t size_;
+
+  std::vector<IndexInfo *> indexes_;
 };
 
 }  // namespace bustub
