@@ -11,19 +11,57 @@
 //===----------------------------------------------------------------------===//
 #include <memory>
 
+#include <iostream>
 #include "execution/executors/update_executor.h"
-
 namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(child_executor.release()) {
+  table_oid_t oid = plan->TableOid();
+  auto catalog = exec_ctx->GetCatalog();
+  table_info_ = catalog->GetTable(oid);
+  indexes_ = catalog->GetTableIndexes(table_info_->name_);
+}
 
-void UpdateExecutor::Init() {}
+void UpdateExecutor::Init() { child_executor_->Init(); }
 
-auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { return false; }
+bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
+  auto exec_ctx = GetExecutorContext();
+  Transaction *txn = exec_ctx_->GetTransaction();
+  TransactionManager *txn_mgr = exec_ctx->GetTransactionManager();
+  LockManager *lock_mgr = exec_ctx->GetLockManager();
 
-auto UpdateExecutor::GenerateUpdatedTuple(const Tuple &src_tuple) -> Tuple {
+  Tuple src_tuple;
+  while (child_executor_->Next(&src_tuple, rid)) {
+    *tuple = this->GenerateUpdatedTuple(src_tuple);
+    if (txn->GetIsolationLevel() != IsolationLevel::REPEATABLE_READ) {
+      if (!lock_mgr->LockExclusive(txn, *rid)) {
+        txn_mgr->Abort(txn);
+      }
+    } else {
+      if (!lock_mgr->LockUpgrade(txn, *rid)) {
+        txn_mgr->Abort(txn);
+      }
+    }
+    if (table_info_->table_->UpdateTuple(*tuple, *rid, txn)) {
+      for (auto indexinfo : indexes_) {
+        indexinfo->index_->DeleteEntry(tuple->KeyFromTuple(*child_executor_->GetOutputSchema(), indexinfo->key_schema_,
+                                                           indexinfo->index_->GetKeyAttrs()),
+                                       *rid, txn);
+        indexinfo->index_->InsertEntry(tuple->KeyFromTuple(*child_executor_->GetOutputSchema(), indexinfo->key_schema_,
+                                                           indexinfo->index_->GetKeyAttrs()),
+                                       *rid, txn);
+
+        txn->GetIndexWriteSet()->emplace_back(*rid, table_info_->oid_, WType::UPDATE, *tuple, src_tuple,
+                                              indexinfo->index_oid_, exec_ctx->GetCatalog());
+      }
+    }
+  }
+  return false;
+}
+
+Tuple UpdateExecutor::GenerateUpdatedTuple(const Tuple &src_tuple) {
   const auto &update_attrs = plan_->GetUpdateAttr();
   Schema schema = table_info_->schema_;
   uint32_t col_count = schema.GetColumnCount();
