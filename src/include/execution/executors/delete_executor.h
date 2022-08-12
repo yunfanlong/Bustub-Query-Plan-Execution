@@ -16,11 +16,11 @@
 #include <utility>
 #include <vector>
 
+#include "concurrency/transaction_manager.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/delete_plan.h"
 #include "storage/table/tuple.h"
-
 namespace bustub {
 
 /**
@@ -50,15 +50,19 @@ class DeleteExecutor : public AbstractExecutor {
    * NOTE: DeleteExecutor::Next() does not use the `tuple` out-parameter.
    * NOTE: DeleteExecutor::Next() does not use the `rid` out-parameter.
    */
-  auto Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool override;
+  bool Next([[maybe_unused]] Tuple *tuple, RID *rid) override;
 
   /** @return The output schema for the delete */
-  auto GetOutputSchema() -> const Schema * override { return plan_->OutputSchema(); };
+  const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
 
  private:
   /** The delete plan node to be executed */
   const DeletePlanNode *plan_;
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  /** Metadata identifying the table that should be updated */
+  const TableInfo *table_info_;
+
+  std::vector<IndexInfo *> indexes_;
 };
 }  // namespace bustub
