@@ -4,7 +4,7 @@ In a relational database, SQL statements will be converted into logical query pl
 
 ## Query plan execution
 
-![figure1](https://github.com/yunfanlong/Bustub-Query-Plan-Execution/blob/main//figure1.png)
+![figure1](https://github.com/yunfanlong/Bustub-Query-Plan-Execution/blob/main/src/figure1.png)
 
 In a relational database, the physical query plan is organized into a tree within the system and executed through a specific query processing model (iterator model, producer model). The model to be implemented in this experiment is an iterator model. As shown in the figure above, each query plan node of this model obtains the next tuple it needs through the `NEXT()` method until the `NEXT()` method Return false. In the execution flow, the `NEXT()` method of the root node is called first, and its control flow propagates downward to the leaf nodes.
 
@@ -289,7 +289,7 @@ In `Next()`, just extract the tuples in the buffer.
 
 `HashJoinExecutor` uses a basic hash join algorithm to perform a join operation. The principle is to use the join key of the tuple (that is, the combination of certain attribute columns) as the key of the hash table, and use the tuple of one of the sub-plan nodes to construct the hash Hope table. Since tuples with the same join key must have the same hash key value, a tuple in another subplan node only needs to look in the bucket of that tuple map for a tuple that can be joined to it, as shown in the following figure:
 
-![figure2](https://github.com/yunfanlong/Bustub-Query-Plan-Execution/blob/main/figure2.png)
+![figure2](https://github.com/yunfanlong/Bustub-Query-Plan-Execution/blob/main/src/figure2.png)
 
 In order for the tuple to be inserted into the hash table, the corresponding hash function needs to be set for the connection key of the tuple, as well as the comparison method of its connection key:
 
